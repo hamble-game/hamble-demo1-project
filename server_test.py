@@ -1,5 +1,8 @@
 # -*- coding: utf-8 -*-
 
+# somehow it works for flask-0.12 (python 3.6.5)
+# and do not work for flask-1.1.1
+
 # HTML5魔塔样板，启动服务Python版
 # 需要安装Python环境，并 pip install flask 安装Flask库
 # 运行方式：python server.py 或 python3 server.py
@@ -37,14 +40,20 @@ def add_header(r):
 
 def is_sub(filename):
 	try:
-		return (os.path.realpath(filename) + os.sep).startswith(os.path.realpath(".") + os.sep)
+		return (os.path.realpath(filename) + os.sep).startswith(os.path.realpath("..") + os.sep)
 	except:
 		return True
 
+def changeToTemplateDir(path):
+	newpath=os.path.realpath(path).replace('hamble-demo1-project', 'hamble-demo1-template')
+	return newpath
+
 def get_mimetype(path):
+	path = path if os.path.exists(path) else changeToTemplateDir(path)
 	return mimetypes.guess_type(path)[0] or 'application/octet-stream'
 
 def get_file(path):
+	path = path if os.path.exists(path) else changeToTemplateDir(path)
 	if not os.path.exists(path):
 		abort(404)
 		return None
@@ -54,6 +63,10 @@ def get_file(path):
 	with open(path, 'rb') as f:
 		content = f.read() # str in py2 and bytes in py3
 	return content 
+
+def set_file(filename,value):
+	with open(filename, 'wb') as f:
+		f.write(value) # str in py2 and bytes in py3
 
 @app.route('/', methods=['GET'])
 def root():
@@ -93,8 +106,7 @@ def writeFile():
 	value = data.get('value', '')
 	if isPy3: value = value.encode('utf-8')
 	if tp == 'base64': value = base64.b64decode(value)
-	with open(filename, 'wb') as f:
-		f.write(value) # str in py2 and bytes in py3
+	set_file(filename,value)
 	return str(len(value))
 
 @app.route('/writeMultiFiles', methods=['POST'])
@@ -112,8 +124,7 @@ def writeMultiFiles():
 		if not is_sub(filename):
 			abort(403)
 			return
-		with open(filename, 'wb') as f:
-			f.write(value)
+		set_file(filename,value)
 		l += len(value)
 	return str(l)
 
