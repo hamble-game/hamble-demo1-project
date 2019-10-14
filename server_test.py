@@ -1,8 +1,5 @@
 # -*- coding: utf-8 -*-
 
-# somehow it works for flask-0.12 (python 3.6.5)
-# and do not work for flask-1.1.1
-
 # HTML5魔塔样板，启动服务Python版
 # 需要安装Python环境，并 pip install flask 安装Flask库
 # 运行方式：python server.py 或 python3 server.py
@@ -27,7 +24,7 @@ except:
 	p("需要flask才可使用本服务。\n安装方式：%s install flask" % ("pip3" if isPy3 else "pip"))
 	exit(1)
 
-app = Flask(__name__, static_folder='')
+app = Flask(__name__, static_folder='', static_url_path='/______')
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
 
 @app.after_request
