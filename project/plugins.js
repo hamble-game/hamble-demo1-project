@@ -1127,50 +1127,87 @@ var plugins_bb40132b_638b_4a9f_b028_d3fe47acc8d1 =
 		sourceCharacter: 'player',
 		stage: 'player',
 		turns: -1,
-		action: 'function(teobj){}'
+		action: 'console.log(id,turns)'
 	}
 
 	/**
-	 * 
-	 * @param {string} sourceCharacter 创建者
-	 * @param {string} stage 事件要被注册到的阶段
-	 * @param {number} turns 剩余回合数, -1表示不会自动消失
-	 * @param {string} action 执行的动作, 此处用字符串形式
-	 * @param {string} sourceId 用来区分一个3*3的火来自同一个法术
+	 * @param {Object} args
+	 * @param {string} args.sourceCharacter 创建者
+	 * @param {string} args.stage 事件要被注册到的阶段
+	 * @param {number} args.turns 剩余回合数, -1表示不会自动消失
+	 * @param {string} args.action 执行的动作, 此处用字符串形式
+	 * @param {string} args.sourceId 用来区分一个3*3的火来自同一个法术
 	 */
-	function TurnEvent(sourceCharacter,stage,turns,action,sourceId){
+	function TurnEvent(args){
 		var teobj=Object.assign(
 			{id:newid()},
 			defaultTurnEvent,
-			{sourceCharacter,stage,turns,action,sourceId}
+			args
 		)
 		if(!teobj.sourceId)teobj.sourceId=newid();
+		// 不使用类是方便json化后复原
 		return teobj
 	}
 
+	var initalTurnEvents={
+		player:[],
+		enemy:[TurnEvent({sourceCharacter:'system',stage:'enemy',turns:-1,action:"core.setFlag('enemyBaseActionPoint',turns%3==0?2:1)",sourceId:'system_moreActionEveryThreeTurns'})],
+		end:[TurnEvent({sourceCharacter:'system',stage:'end',turns:-1,action:"core.setFlag('playerActionPoint',1);if(turns%3==0){core.restoreHero()}",sourceId:'system_rechargePlayer'})],
+	}
+
 	function getTurnEvents(){
-		return core.getFlag('TurnEvents',{
-			player:[],
-			enemy:[],
-			end:[],
-		})
+		return core.getFlag('TurnEvents',initalTurnEvents)
+	}
+
+	function renderToAction(teobj){
+		raise(Error('unfinished'))
+		teobj.turns-=1
+		if (teobj.turns==0) {
+			removeTurnEvent(teobj)
+			return {"type": "comment", "text": ""}
+		}
+		return {"type": "function", "function": `function(){\n(function (id,turns) {\n${teobj.action}\n})('${teobj.id}',${teobj.turns});\n}`}
 	}
 
 	function enterStage(stageName){
 		switch (stagename) {
 			case 'player':
-				
+				tryEndPlayerStage()
 				break;
 			case 'enemy':
-			
+				// map兼容性能否使用,以及一边map一边改源数组待考察
+				core.insertAction(getTurnEvents().enemy.map(v=>renderToAction(v)).concat([
+					{"type": "function", "function": "function(){\ncore.turn.enterStage('end')\n}"},
+				]))
 				break;
 			case 'end':
-		
+				core.insertAction(getTurnEvents().end.map(v=>renderToAction(v)).concat([
+					{"type": "function", "function": "function(){\ncore.turn.enterStage('player')\n}"},
+				]))
 				break;
 		
 			default:
 				break;
 		}
+	}
+
+	/**
+	 * 尝试结束这个玩家阶段, 此函数放在每次移动结束/释放完法术等行动结束的场景
+	 * @param {*} params 
+	 */
+	function tryEndPlayerStage(params) {
+		if (core.getFlag('playerActionPoint',0)) {
+			core.setFlag('playerActionPoint',core.getFlag('playerActionPoint',0)-1)
+			generalAction()
+			return
+		}
+		// if (...) moveOnly() ..
+		// if (...) skillOnly() ..
+		// 可能要改成switch
+		raise(Error('unfinished'))
+		core.insertAction(getTurnEvents().player.map(v=>renderToAction(v)).concat([
+			{"type": "function", "function": "function(){\ncore.turn.enterStage('enemy')\n}"},
+		]))
 	}
 
 	function generalAction(params) {
@@ -1186,6 +1223,10 @@ var plugins_bb40132b_638b_4a9f_b028_d3fe47acc8d1 =
 	}
 
 	function selectingTarget(params) {
+		
+	}
+
+	function restoreHero(params) {
 		
 	}
 
