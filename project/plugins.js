@@ -1117,6 +1117,7 @@ var plugins_bb40132b_638b_4a9f_b028_d3fe47acc8d1 =
 	// 玩家行动-怪物行动-结束阶段
 	// player-enemy-end
 
+	// var newid = core.xxx.newid;
 	var newid = function () {
 		var id=core.getFlag('current_id_count', 1)
 		core.setFlag('current_id_count', ~~id+1)
@@ -1151,12 +1152,13 @@ var plugins_bb40132b_638b_4a9f_b028_d3fe47acc8d1 =
 
 	var initalTurnEvents={
 		player:[],
-		enemy:[TurnEvent({sourceCharacter:'system',stage:'enemy',turns:-1,action:"core.setFlag('enemyBaseActionPoint',turns%3==0?2:1)",sourceId:'system_moreActionEveryThreeTurns'})],
-		end:[TurnEvent({sourceCharacter:'system',stage:'end',turns:-1,action:"core.setFlag('playerActionPoint',1);if(turns%3==0){core.restoreHero()}",sourceId:'system_rechargePlayer'})],
+		enemy:[TurnEvent({sourceCharacter:'system',stage:'enemy',action:"core.setFlag('enemyBaseActionPoint',turns%3==0?2:1)",id:'_moreActionEveryThreeTurns'})],
+		end:[TurnEvent({sourceCharacter:'system',stage:'end',action:"core.setFlag('playerActionPoint',1);if(turns%3==0){core.turn.restorePlayer()}",id:'_restorePlayer'})],
 	}
+	core.setFlag('TurnEvents',initalTurnEvents)
 
 	function getTurnEvents(){
-		return core.getFlag('TurnEvents',initalTurnEvents)
+		return core.getFlag('TurnEvents')
 	}
 
 	function renderToAction(teobj){
@@ -1222,17 +1224,78 @@ var plugins_bb40132b_638b_4a9f_b028_d3fe47acc8d1 =
 		
 	}
 
-	function selectingTarget(params) {
-		
-	}
-
-	function restoreHero(params) {
+	function restorePlayer(params) {
 		
 	}
 
 },
     "CharacterClass": function () {
 	// 在此增加新插件
+
+},
+    "gods": function () {
+	// 在此增加新插件
+
+	core.setFlag('Preferences',{
+		life:0,
+		battle:0,
+		spell:0
+	})
+
+	function getPreferences(params) {
+		return core.getFlag('Preferences')
+	}
+
+},
+    "epiphanySystem": function () {
+	// 在此增加新插件
+
+	function Epiphany(args) {
+		args.content=args.content.map(v=>Skill(v))
+		return args
+	}
+
+	function Skill(args) {
+		if(args.damage)args.damage=Damage(args.damage);
+		args.rangeCode=args.rangeCode||1
+		return args
+	}
+
+	function Damage(args) {
+		return args
+	}
+
+	core.setFlag('killCount',{})
+
+	var e1=Epiphany({
+		name: '伤害法术系',
+		content: [
+			{
+				name: '单体法术',
+				id: '_s1',
+				type: 'spell',
+				damage: {fire:'20+1.2*spellPower'},
+				cost: {mana:20},
+			},
+			{
+				name: '范围法术',
+				id: '_s2',
+				type: 'spell',
+				rangeCode: 2, //用code来区分不同的范围和射程, 默认的1
+				damage: {fire:'40+spellPower'},
+				cost: {mana:50},
+				prerequisite: "core.getFlag('killCount')._s1>=10",
+			},
+			{
+				name: '???',
+				id: '_p1',
+				type: 'passive',
+				action: "core.setFlag('moveAfterSpell',1)",
+				prerequisite: "core.getFlag('killCount')._s2>=10",
+			},
+		],
+		prerequisite: "true",
+	})
 
 }
 }
