@@ -1152,7 +1152,7 @@ var plugins_bb40132b_638b_4a9f_b028_d3fe47acc8d1 =
 
 	var initalTurnEvents={
 		player:[],
-		enemy:[TurnEvent({sourceCharacter:'system',stage:'enemy',action:"core.setFlag('enemyBaseActionPoint',turns%3==0?2:1)",id:'_moreActionEveryThreeTurns'})],
+		enemy:[TurnEvent({sourceCharacter:'system',stage:'enemy',action:"core.setFlag('enemyAdditionActionPoint',turns%3==0?1:0)",id:'_moreActionEveryThreeTurns'})],
 		end:[TurnEvent({sourceCharacter:'system',stage:'end',action:"core.setFlag('playerActionPoint',1);if(turns%3==0){core.turn.restorePlayer()}",id:'_restorePlayer'})],
 	}
 	core.setFlag('TurnEvents',initalTurnEvents)
@@ -1232,6 +1232,44 @@ var plugins_bb40132b_638b_4a9f_b028_d3fe47acc8d1 =
     "CharacterClass": function () {
 	// 在此增加新插件
 
+	// 放在怪物初始化那里更好, 之后改为在这里重写怪物初始化
+	var defaultCharacter={
+		hpRestore:1,
+		mpRestore:1,
+		block:{
+			current:50,
+			trigger:100,
+			rate:5,
+		},
+		blockValue:5,
+		skillPower:0,
+		spellPower:0,
+		atk_:{
+			hit:0,
+			fire:0,
+		},
+		def_:{
+			hit:0,
+			fire:0,
+		},
+		actionPoint:1,
+		currentActionPoint:1,
+		statusMarks:[], // 'stun','blink'
+	}
+
+	/**
+	 * @param {Object} args
+	 * @param {string} args.hp 生命值
+	 */
+	function Character(args) {
+		var cobj=Object.assign(
+			defaultCharacter,
+			args
+		)
+		return cobj
+	}
+
+
 },
     "gods": function () {
 	// 在此增加新插件
@@ -1257,7 +1295,7 @@ var plugins_bb40132b_638b_4a9f_b028_d3fe47acc8d1 =
 
 	function Skill(args) {
 		if(args.damage)args.damage=Damage(args.damage);
-		args.rangeCode=args.rangeCode||1
+		args.rangeCode=args.rangeCode||0 // 0是近战范围
 		return args
 	}
 
@@ -1266,36 +1304,112 @@ var plugins_bb40132b_638b_4a9f_b028_d3fe47acc8d1 =
 	}
 
 	core.setFlag('killCount',{})
+	core.setFlag('blockCount',{})
 
 	var e1=Epiphany({
 		name: '伤害法术系',
 		content: [
 			{
 				name: '单体法术',
+				description: '单体法术',
 				id: '_s1',
 				type: 'spell',
+				rangeCode: 1,
 				damage: {fire:'20+1.2*spellPower'},
 				cost: {mana:20},
 			},
 			{
 				name: '范围法术',
+				description: '范围法术',
 				id: '_s2',
 				type: 'spell',
-				rangeCode: 2, //用code来区分不同的范围和射程, 默认的1
+				rangeCode: 2,
 				damage: {fire:'40+spellPower'},
 				cost: {mana:50},
 				prerequisite: "core.getFlag('killCount')._s1>=10",
 			},
 			{
 				name: '???',
+				description: '释放技能后仍可移动一次',
 				id: '_p1',
 				type: 'passive',
 				action: "core.setFlag('moveAfterSpell',1)",
 				prerequisite: "core.getFlag('killCount')._s2>=10",
 			},
 		],
-		prerequisite: "true",
 	})
+	var e2=Epiphany({
+		name: '伤害技能系',
+		content: [
+			{
+				name: '单体技能',
+				description: '单体技能',
+				id: '_s3',
+				type: 'skill',
+				rangeCode: 1,
+				damage: {hit:'20+1.2*skillPower'},
+				cost: {cd:3},
+			},
+			{
+				name: '范围技能',
+				description: '范围技能',
+				id: '_s4',
+				type: 'skill',
+				rangeCode: 2,
+				damage: {hit:'40+skillPower'},
+				cost: {cd:10},
+				prerequisite: "core.getFlag('killCount')._s3>=10",
+			},
+			{
+				name: '强化的普攻',
+				description: '对目标进行两次强化的普攻',
+				id: '_s5',
+				type: 'skill',
+				cost: {cd:13},
+				isAtk: 2,
+				damage: {hit:'5+0.3*skillPower'},
+				prerequisite: "core.getFlag('killCount')._s4>=10",
+			},
+		],
+	})
+	var e3=Epiphany({
+		name: '辅助系',
+		content: [
+			{
+				name: '???',
+				description: '加格挡率',
+				id: '_p2',
+				type: 'passive',
+				action: "core.status.hero.block.rate+=7",
+			},
+			{
+				name: '盾击',
+				description: '用盾牌杂向敌人, 眩晕2回合',
+				id: '_s6',
+				type: 'skill',
+				cost: {cd:20},
+				action: "/*加眩晕标记,推送回合事件*/",
+				prerequisite: "core.getFlag('blockCount').all>=20",
+			},
+			{
+				name: 'blink',
+				description: '折越到指定地点',
+				id: '_s7',
+				type: 'spell',
+				cost: {cd:3},
+				action: "/*把玩家的行动点数设为0, 在end阶段推一个计数是2的事件, 事件触发时把玩家位置转移到设定的目标并恢复行动点数*/",
+				prerequisite: "core.getFlag('killCount').stun>=10",
+			},
+		],
+	})
+
+	function unlock(){
+
+	}
+
+},
+    "battleSystem": function () {
+	// 在此增加新插件
 
 }
 }
