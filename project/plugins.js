@@ -1410,6 +1410,20 @@ var plugins_bb40132b_638b_4a9f_b028_d3fe47acc8d1 =
 },
     "battleSystem": function () {
 	// 在此增加新插件
+	core.battleSystem={triggerAttack:function(enemyId, x, y){return false;}}
+	
+	var afterBattle=core.events.eventdata.afterBattle.toString()
+	afterBattle=afterBattle.replace(/var damage = core.enemys.getDamage[\d\D]*?core.status.hero.statistics.battleDamage \+= damage;/,'if(!core.battleSystem.triggerAttack(enemyId, x, y))return;')
+	eval('var afterBattlefunc='+afterBattle)
+	core.events.eventdata.afterBattle=afterBattlefunc
+
+	function triggerAttack (enemyId, x, y) {
+		core.setFlag('playerActionPoint',core.getFlag('playerActionPoint')-1)
+		var isEnemyDead = core.battleSystem.normalAttack(core.battleSystem.hero(),core.battleSystem.getEnemy(x, y))
+		core.turn.tryEndPlayerStage()
+		return isEnemyDead;
+	}
+	
 
 }
 }
