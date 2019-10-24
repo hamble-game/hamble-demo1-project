@@ -1269,6 +1269,29 @@ var plugins_bb40132b_638b_4a9f_b028_d3fe47acc8d1 =
 		return cobj
 	}
 
+	// 人物属性分为静态动态两部分, 是否有必要待考量
+	var defaultDynamicCharacter={
+		hpRestore:0,
+		mpRestore:0,
+		block:{
+			trigger:0,
+			rate:0,
+		},
+		blockValue:0,
+		skillPower:0,
+		spellPower:0,
+		atk_:{
+			hit:0,
+			fire:0,
+		},
+		def_:{
+			hit:0,
+			fire:0,
+		},
+		actionPoint:0,
+		currentActionPoint:0,
+	}
+
 
 },
     "gods": function () {
@@ -1410,7 +1433,7 @@ var plugins_bb40132b_638b_4a9f_b028_d3fe47acc8d1 =
 },
     "battleSystem": function () {
 	// 在此增加新插件
-	core.battleSystem={triggerAttack:function(enemyId, x, y){return false;}}
+	core.battleSystem={cache:{},triggerAttack:function(enemyId, x, y){return false;}}
 
 	var afterBattle=core.events.eventdata.afterBattle.toString()
 	afterBattle=afterBattle.replace(/var damage = core.enemys.getDamage[\d\D]*?core.status.hero.statistics.battleDamage \+= damage;/,'if(!core.battleSystem.triggerAttack(enemyId, x, y))return;')
@@ -1419,9 +1442,52 @@ var plugins_bb40132b_638b_4a9f_b028_d3fe47acc8d1 =
 
 	function triggerAttack (enemyId, x, y) {
 		core.setFlag('playerActionPoint',core.getFlag('playerActionPoint')-1)
-		var isEnemyDead = core.battleSystem.normalAttack(core.battleSystem.hero(),core.battleSystem.getEnemy(x, y))
+		var result = core.battleSystem.normalAttackInfo(core.battleSystem.hero(),core.battleSystem.getEnemy(x, y))
+		core.battleSystem.cache.attackInfo=result;
 		core.turn.tryEndPlayerStage()
-		return isEnemyDead;
+		return result.isDefenderDead;
+	}
+
+	/**
+	 * 两个角色间的普攻
+	 * @param {*} catk 攻击者
+	 * @param {*} cdef 被攻击者
+	 */
+	function normalAttackInfo(catk,cdef) {
+		var result={
+			damage:0
+		}
+		var damage=Object.assign({},catk.atk_)
+		// 判定闪避
+		// 判定格挡
+		if ('hit' in damage) {
+			result.tryBlock=true
+			if(cdef.block.current+cdef.block.rate>cdef.block.trigger){
+				result.hasBlock=true;
+				if (damage.hit>=cdef.blockValue) {
+					result.blockValue=cdef.blockValue
+				} else if (damage.hit>0) {
+					result.blockValue=damage.hit
+				}
+				damage.hit-=cdef.blockValue;
+			}
+		}
+		for (var key in damage) {
+			// 减去抵抗
+			if (cdef.def_[key]) {
+				damage[key]-=cdef.def_[key]
+			}
+			// 计算伤害
+			if (damage[key]>0){
+				result.damage+=damage[key];
+			}
+		}
+		result.damageInfo=damage
+		// 判定死亡
+		if (damage>=cdef.hp) {
+			result.isDefenderDead=true
+		}
+		return result;
 	}
 	
 
