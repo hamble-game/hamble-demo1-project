@@ -1411,7 +1411,7 @@ var plugins_bb40132b_638b_4a9f_b028_d3fe47acc8d1 =
     "battleSystem": function () {
 	// 在此增加新插件
 	core.battleSystem={triggerAttack:function(enemyId, x, y){return false;}}
-	
+
 	var afterBattle=core.events.eventdata.afterBattle.toString()
 	afterBattle=afterBattle.replace(/var damage = core.enemys.getDamage[\d\D]*?core.status.hero.statistics.battleDamage \+= damage;/,'if(!core.battleSystem.triggerAttack(enemyId, x, y))return;')
 	eval('var afterBattlefunc='+afterBattle)
@@ -1422,6 +1422,18 @@ var plugins_bb40132b_638b_4a9f_b028_d3fe47acc8d1 =
 		var isEnemyDead = core.battleSystem.normalAttack(core.battleSystem.hero(),core.battleSystem.getEnemy(x, y))
 		core.turn.tryEndPlayerStage()
 		return isEnemyDead;
+	}
+	
+
+},
+    "environment": function () {
+	// 在此增加新插件
+	
+	
+	function triggerArrived(params) {
+		// 检测是否激活新怪物
+		// 检测环境伤害
+		// 检测陷阱
 	}
 	
 
