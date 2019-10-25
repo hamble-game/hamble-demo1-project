@@ -1110,6 +1110,47 @@ var plugins_bb40132b_638b_4a9f_b028_d3fe47acc8d1 =
 },
     "utilFunctions": function () {
 	// 在此增加新插件
+
+	/**
+	 * 把两个同形态的对象加起来, 两者均满足json化eval等于自身  
+	 * + 对象是共同key相加其他合并  
+	 * + 数组是作为集合取并  
+	 * + 字符串是只保留o1  
+	 * + 数值是相加  
+	 * 
+	 * 结果中可能保留源对象部分成员的引用  
+	 * @param {*} o1 
+	 * @param {*} o2 
+	 */
+	function addObject(o1,o2) {
+		if (o1==null)return o2;
+		if (o2==null)return o1;
+		// string
+		if (typeof (o1) === typeof (''))return o1;
+		// array
+		if (o1 instanceof Array) {
+			var obj=Array.from(o1)
+			for (var index = 0; index < o2.length; index++) {
+				if (obj.indexOf(o2[index])===-1) {
+					obj.push(o1)
+				}
+				return obj;
+			}
+		}
+		// object
+		if (o1 instanceof Object) {
+			var obj=Object.assign({},o1)
+			for (var key in o2) {
+				if(key in obj){
+					obj[key]=addObject(o1[key],o2[key])
+				}else{
+					obj[key]=o2[key]
+				}
+			}
+			return obj;
+		}
+		return o1+o2;
+	}
 	
 },
     "TurnBased": function () {
@@ -1232,6 +1273,8 @@ var plugins_bb40132b_638b_4a9f_b028_d3fe47acc8d1 =
     "CharacterClass": function () {
 	// 在此增加新插件
 
+	
+
 	// 放在怪物初始化那里更好, 之后改为在这里重写怪物初始化
 	var defaultCharacter={
 		hpRestore:1,
@@ -1269,27 +1312,13 @@ var plugins_bb40132b_638b_4a9f_b028_d3fe47acc8d1 =
 		return cobj
 	}
 
-	// 人物属性分为静态动态两部分, 是否有必要待考量
+	// 人物属性分为静态source 动态buff 两部分, 动态部分由很多对象组合而成, 使用addObject加起来后是最终属性cache
+	var xxx={
+		cache:{},
+		source:{},
+		buff:[{},{},],
+	}
 	var defaultDynamicCharacter={
-		hpRestore:0,
-		mpRestore:0,
-		block:{
-			trigger:0,
-			rate:0,
-		},
-		blockValue:0,
-		skillPower:0,
-		spellPower:0,
-		atk_:{
-			hit:0,
-			fire:0,
-		},
-		def_:{
-			hit:0,
-			fire:0,
-		},
-		actionPoint:0,
-		currentActionPoint:0,
 	}
 
 
@@ -1445,7 +1474,7 @@ var plugins_bb40132b_638b_4a9f_b028_d3fe47acc8d1 =
 		var result = core.battleSystem.normalAttackInfo(core.battleSystem.hero(),core.battleSystem.getEnemy(x, y))
 		core.battleSystem.cache.attackInfo=result;
 		core.turn.tryEndPlayerStage()
-		return result.isDefenderDead;
+		return result.isTargetDead;
 	}
 
 	/**
@@ -1454,38 +1483,44 @@ var plugins_bb40132b_638b_4a9f_b028_d3fe47acc8d1 =
 	 * @param {*} cdef 被攻击者
 	 */
 	function normalAttackInfo(catk,cdef) {
+		// 判定闪避
+		// 计算伤害
+		var result=damageInfo(catk._atk,cdef)
+		return result;
+	}
+
+	function damageInfo(damage,targetc) {
 		var result={
 			damage:0
 		}
-		var damage=Object.assign({},catk.atk_)
-		// 判定闪避
+		var damageInfo=Object.assign({},damage)
 		// 判定格挡
-		if ('hit' in damage) {
+		if ('hit' in damageInfo) {
 			result.tryBlock=true
-			if(cdef.block.current+cdef.block.rate>cdef.block.trigger){
+			if(targetc.block.current+targetc.block.rate>targetc.block.trigger){
 				result.hasBlock=true;
-				if (damage.hit>=cdef.blockValue) {
-					result.blockValue=cdef.blockValue
-				} else if (damage.hit>0) {
-					result.blockValue=damage.hit
+				if (damageInfo.hit>=targetc.blockValue) {
+					result.blockValue=targetc.blockValue
+				} else if (damageInfo.hit>0) {
+					result.blockValue=damageInfo.hit
 				}
-				damage.hit-=cdef.blockValue;
+				damageInfo.hit-=targetc.blockValue;
 			}
 		}
-		for (var key in damage) {
+		for (var key in damageInfo) {
 			// 减去抵抗
-			if (cdef.def_[key]) {
-				damage[key]-=cdef.def_[key]
+			if (targetc.def_[key]) {
+				damageInfo[key]-=targetc.def_[key]
 			}
 			// 计算伤害
-			if (damage[key]>0){
-				result.damage+=damage[key];
+			if (damageInfo[key]>0){
+				result.damage+=damageInfo[key];
 			}
 		}
-		result.damageInfo=damage
+		result.damageInfo=damageInfo
 		// 判定死亡
-		if (damage>=cdef.hp) {
-			result.isDefenderDead=true
+		if (result.damage>=targetc.hp) {
+			result.isTargetDead=true
 		}
 		return result;
 	}
