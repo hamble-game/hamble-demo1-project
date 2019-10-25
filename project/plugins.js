@@ -1240,7 +1240,8 @@ var plugins_bb40132b_638b_4a9f_b028_d3fe47acc8d1 =
 	 */
 	function tryEndPlayerStage(params) {
 		if (core.getFlag('playerActionPoint',0)) {
-			core.setFlag('playerActionPoint',core.getFlag('playerActionPoint',0)-1)
+			// 下一句改为放在每次释放普攻后或移动后?
+			// core.setFlag('playerActionPoint',core.getFlag('playerActionPoint',0)-1)
 			generalAction()
 			return
 		}
@@ -1321,6 +1322,15 @@ var plugins_bb40132b_638b_4a9f_b028_d3fe47acc8d1 =
 	var defaultDynamicCharacter={
 	}
 
+	function updateHero(params) {
+		// 用addObject 把source/buff/神的buff等加到一起给cache
+		
+	}
+
+	function hero(params) {
+		// 把cache返回
+	}
+
 
 },
     "gods": function () {
@@ -1335,6 +1345,8 @@ var plugins_bb40132b_638b_4a9f_b028_d3fe47acc8d1 =
 	function getPreferences(params) {
 		return core.getFlag('Preferences')
 	}
+
+	// 每个神产生一个buff
 
 },
     "epiphanySystem": function () {
@@ -1464,6 +1476,8 @@ var plugins_bb40132b_638b_4a9f_b028_d3fe47acc8d1 =
 	// 在此增加新插件
 	core.battleSystem={cache:{},triggerAttack:function(enemyId, x, y){return false;}}
 
+	// 重写 afterBattlefunc
+	// 对于压缩后的有问题, 要重写这个正则
 	var afterBattle=core.events.eventdata.afterBattle.toString()
 	afterBattle=afterBattle.replace(/var damage = core.enemys.getDamage[\d\D]*?core.status.hero.statistics.battleDamage \+= damage;/,'if(!core.battleSystem.triggerAttack(enemyId, x, y))return;')
 	eval('var afterBattlefunc='+afterBattle)
@@ -1471,7 +1485,7 @@ var plugins_bb40132b_638b_4a9f_b028_d3fe47acc8d1 =
 
 	function triggerAttack (enemyId, x, y) {
 		core.setFlag('playerActionPoint',core.getFlag('playerActionPoint')-1)
-		var result = core.battleSystem.normalAttackInfo(core.battleSystem.hero(),core.battleSystem.getEnemy(x, y))
+		var result = core.battleSystem.normalAttackInfo(core.CharacterClass.hero(),core.CharacterClass.getEnemy(x, y))
 		core.battleSystem.cache.attackInfo=result;
 		core.turn.tryEndPlayerStage()
 		return result.isTargetDead;
@@ -1485,15 +1499,20 @@ var plugins_bb40132b_638b_4a9f_b028_d3fe47acc8d1 =
 	function normalAttackInfo(catk,cdef) {
 		// 判定闪避
 		// 计算伤害
-		var result=damageInfo(catk._atk,cdef)
+		var result=core.battleSystem.damageInfo(catk._atk,cdef)
 		return result;
 	}
 
-	function damageInfo(damage,targetc) {
+	/**
+	 * 伤害判定信息
+	 * @param {*} atk_ 伤害
+	 * @param {*} targetc 被施加者
+	 */
+	function damageInfo(atk_,targetc) {
 		var result={
 			damage:0
 		}
-		var damageInfo=Object.assign({},damage)
+		var damageInfo=Object.assign({},atk_)
 		// 判定格挡
 		if ('hit' in damageInfo) {
 			result.tryBlock=true
